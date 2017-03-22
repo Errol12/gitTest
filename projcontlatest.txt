@@ -27,6 +27,8 @@ class ProjectController extends Controller
     {
         //
       $projects = Project::where('client_id','=',$client->id)->paginate(50);
+
+      
       return view('projects.index',compact('client','projects'));
     }
 
@@ -935,7 +937,7 @@ public function addAlter(Request $request,$count,$project,$crit){
 
       if($rowLimit<$combination){
 
-       $alt1Id = $all_alternatives[$count];
+       $alt1Id = $all_alternatives[0];
        $alt1 = Alternative::find($alt1Id);
 
        $count = $count + 1;
@@ -946,7 +948,7 @@ public function addAlter(Request $request,$count,$project,$crit){
      }
 
      else{
-      $alt1Id = $all_alternatives[0];
+      $alt1Id = $all_alternatives[$count-1];
       $alt1 = Alternative::find($alt1Id);
 
       $alt2Id = $all_alternatives[$count];
@@ -1153,7 +1155,7 @@ for ($col = 0; $col < sizeof($all_alternatives); $col++) {echo "the value is: ";
 
 
 }
- session()->flash('message','Project created');
+ //session()->flash('message','Project created');
 return redirect('/clients/'.$clientId.'/projects');
 }
 
@@ -1390,7 +1392,47 @@ return redirect('/clients/'.$clientId.'/projects');
         }
 
 
+        public function checkAlternative(Project $project){
 
+         $all_criteria = DB::table('alternative_matrix')->where('project_id', $project->id)->distinct()->pluck('cp_id');
+
+          foreach($all_criteria as $cp_id){
+          $projects = DB::table('alternative_matrix')
+                      ->select('project_id','cp_id','ap_id','vs_ap_id','value')
+                      ->where('project_id',$project->id)
+                      ->where('cp_id',$cp_id)
+                      ->whereColumn('ap_id','<','vs_ap_id')
+                      ->orderBy('cp_id','asc')
+                      ->orderBy('vs_ap_id','asc')
+                      ->get();
+
+          $matrix_values[] = $projects;
+
+         }
+
+          //return $proj;
+$crit=0;
+$alt=0;
+            foreach($matrix_values as $criterias){
+              $alt=0;
+              foreach($criterias as $criteria){
+
+                if($criteria->value==0.000){
+
+                    break 2;
+                }
+                $alt++;
+              }
+              $crit++;
+            }
+
+            
+            echo $alt;
+            echo $crit;
+//return "success";
+             return redirect('clients/project/criteria/'.$alt.'/'.$project->id.'/'.$crit);
+
+        }
 
         public function outcome(Project $project)
         {
@@ -1473,12 +1515,6 @@ $CloudSupportedPaas = DB::table('iaas_paas')
 
  }*/
 
- /*foreach($project->ranking as $rank){
-
-  echo $rank->pivot->alternative_id;
-
- }*/
-
 
 $criteriaId = DB::table('project_criteria')->where('project_id', $project->id)->pluck('criteria_id');
 
@@ -1510,6 +1546,7 @@ $ahpCriteriaMatrix =  DB::table('application_criteria_matrix')
 ->whereColumn('cp_id', '<', 'vs_cp_id')
 ->get();
 
+$ahpCriteriaRank=[];
 
 foreach($ahpCriteriaMatrix as $data){
 
@@ -1569,7 +1606,12 @@ $cloudRanking = DB::table('application_alternative_ranking')
 
 
 
-
+//return $ahpCriteriaRank;
+                    /*if(!empty($ahpCriteriaRank)){
+                      return "empty";
+                    }else{
+                      return "filled";
+                    }*/
 
 
               $header = \View::make('layouts.pdfheader')->render();
@@ -1603,8 +1645,8 @@ $cloudRanking = DB::table('application_alternative_ranking')
  $all_criteria = DB::table('alternative_matrix')->where('project_id', $project)->distinct()->pluck('cp_id');
 $all_alternatives = DB::table('project_alternative')->where('project_id', $project)->pluck('ap_id');
 
-  foreach ($all_criteria as $criteria) {
-
+  foreach ($all_criteria as $criteria) {echo "<br>";
+echo "Criteria ------------- --------------- ".$criteria;
     $a = [[]];
    
     $all_alternative_values = DB::table('alternative_matrix')->where('project_id', $project)
@@ -1632,12 +1674,19 @@ $all_alternatives = DB::table('project_alternative')->where('project_id', $proje
       }
 
     }
+$arr1=array("Public","Private","Hybrid");
 
+   
     echo "<table border='1'>";
+echo "<tr>";echo "<th>&nbsp;</th>";
+echo "<th> Public </th>";
+echo "<th> Private </th>";
+echo "<th> Hybrid </th>";
+echo "</tr>";
     for ($row = 0; $row < sizeof($all_alternatives); $row++) {
-      echo "<tr>";
+      echo "<tr>";echo "<td><b>".$arr1[$row]."</b></td>";
       for ($col = 0; $col < sizeof($all_alternatives); $col++) {
-        echo "<td>".$a[$row][$col]."</td>";
+        echo "<td width='30%'>".$a[$row][$col]."</td>";
       }
       echo "</tr>";
     }
@@ -1670,10 +1719,15 @@ $all_alternatives = DB::table('project_alternative')->where('project_id', $proje
          }
 
     echo "<table border='1'>";
+    echo "<tr>";echo "<th>&nbsp;</th>";
+echo "<th> Public </th>";
+echo "<th> Private </th>";
+echo "<th> Hybrid </th>";
+echo "</tr>";
     for ($row = 0; $row < sizeof($all_alternatives); $row++) {
-      echo "<tr>";
+      echo "<tr>";echo "<td><b>".$arr1[$row]."</b></td>";
       for ($col = 0; $col < sizeof($all_alternatives); $col++) {
-        echo "<td>".$square_1[$row][$col]."</td>";
+        echo "<td width='30%'>".$square_1[$row][$col]."</td>";
       }
       echo "</tr>";
     }
@@ -1693,7 +1747,7 @@ for ($row = 0; $row < sizeof($all_alternatives); $row++) {
 for ($col = 0; $col < sizeof($all_alternatives); $col++) {echo "the value is: ";
         echo "<td>".$comp[$col]."</td>";echo "<br>";
       echo "normalized value is  ";
-      echo ($comp[$col]/$sum);echo "<br>";
+      echo ($comp[$col]/$sum);echo "<br>";echo "<br>";
   /*    DB::table('alternative_ranking')
             ->where('project_id',$project)
             ->where('cp_id',$criteria)
@@ -1704,7 +1758,7 @@ for ($col = 0; $col < sizeof($all_alternatives); $col++) {echo "the value is: ";
 echo "<br>";
 echo "<br>";
 
-echo "iteration 2";
+echo "iteration 2";echo "<br>";
 //----------------------------------------Square_2 of result matrix---------------------------------------
  $square_2 = [[]];
 
@@ -1731,11 +1785,17 @@ echo "iteration 2";
             }
          }
 
+
     echo "<table border='1'>";
+    echo "<tr>";echo "<th>&nbsp;</th>";
+echo "<th> Public </th>";
+echo "<th> Private </th>";
+echo "<th> Hybrid </th>";
+echo "</tr>";
     for ($row = 0; $row < sizeof($all_alternatives); $row++) {
-      echo "<tr>";
+      echo "<tr>";echo "<td><b>".$arr1[$row]."</b></td>";
       for ($col = 0; $col < sizeof($all_alternatives); $col++) {
-        echo "<td>".$square_2[$row][$col]."</td>";
+        echo "<td width='30%'>".$square_2[$row][$col]."</td>";
       }
       echo "</tr>";
     }
@@ -1756,7 +1816,7 @@ for ($row = 0; $row < sizeof($all_alternatives); $row++) {
 for ($col = 0; $col < sizeof($all_alternatives); $col++) {echo "the value is: ";
         echo "<td>".$comp2[$col]."</td>";echo "<br>";
       echo "normalized value is  ";
-      echo ($comp2[$col]/$sum);echo "<br>";
+      echo ($comp2[$col]/$sum);echo "<br>";echo "<br>";
       /*DB::table('alternative_ranking')
             ->where('project_id',$project)
             ->where('cp_id',$criteria)
@@ -1767,7 +1827,7 @@ for ($col = 0; $col < sizeof($all_alternatives); $col++) {echo "the value is: ";
 echo "<br>";
 echo "<br>";
 
-echo "----------------------------------------------------------------end of first criteria------------------------------------";
+echo "----------------------------------------------------------------end of criteria------------------------------------";
   }
 
 
@@ -1811,10 +1871,17 @@ $k = $k+1;
   }
 
 }
-
+$arr=array("Scalability","Security","Latency","IO Intensity");
 echo "<table border='1'>";
+echo "<tr>";
+echo "<th>&nbsp;</th>";
+echo "<th>Scalability </th>";
+echo "<th> Security </th>";
+echo "<th> Latency </th>";
+echo "<th> IO Intensity </th>";
+echo "</tr>";
 for ($row = 0; $row < sizeof($all_criteria); $row++) {
-  echo "<tr>";
+  echo "<tr>"; echo "<td><b>".$arr[$row]."</b></td>";
   for ($col = 0; $col < sizeof($all_criteria); $col++) {
     echo "<td>".$a[$row][$col]."</td>";
   }
@@ -1856,9 +1923,19 @@ $square_1 = [[]];
             }
          }
 
+
+echo "<br>";
  echo "<table border='1'>";
-    for ($row = 0; $row < sizeof($all_criteria); $row++) {
+ echo "<tr>";
+echo "<th>&nbsp;</th>";
+echo "<th>Scalability </th>";
+echo "<th> Security </th>";
+echo "<th> Latency </th>";
+echo "<th> IO Intensity </th>";
+echo "</tr>";
+for ($row = 0; $row < sizeof($all_criteria); $row++) {
       echo "<tr>";
+        echo "<td><b>".$arr[$row]."</b></td>";
       for ($col = 0; $col < sizeof($all_criteria); $col++) {
         echo "<td>".$square_1[$row][$col]."</td>";
       }
@@ -1880,7 +1957,7 @@ for ($row = 0; $row < sizeof($all_criteria); $row++) {
 for ($col = 0; $col < sizeof($all_criteria); $col++) {echo "the value is: ";
         echo "<td>".$comp[$col]."</td>";echo "<br>";
       echo "normalized value is  ";
-      echo ($comp[$col]/$sum);echo "<br>";
+      echo ($comp[$col]/$sum);echo "<br>";echo "<br>";
     /*  DB::table('application_criteria_ranking')
             ->where('project_id',$project)
             ->where('application_id',$application_id)
@@ -1918,8 +1995,14 @@ echo "iteration 2";
          }
 
  echo "<table border='1'>";
+ echo "<tr>";echo "<th>&nbsp;</th>";
+echo "<th>Scalability </th>";
+echo "<th> Security </th>";
+echo "<th> Latency </th>";
+echo "<th> IO Intensity </th>";
+echo "</tr>";
     for ($row = 0; $row < sizeof($all_criteria); $row++) {
-      echo "<tr>";
+      echo "<tr>";echo "<td><b>".$arr[$row]."</b></td>";
       for ($col = 0; $col < sizeof($all_criteria); $col++) {
         echo "<td>".$square_2[$row][$col]."</td>";
       }
@@ -1944,7 +2027,7 @@ for ($col = 0; $col < sizeof($all_criteria); $col++) {
   echo "the value is: ";
         echo "<td>".$comp2[$col]."</td>";echo "<br>";
       echo "normalized value is  ";
-      echo ($comp2[$col]/$sum);echo "<br>";
+      echo ($comp2[$col]/$sum);echo "<br>";echo "<br>";
 
       $criteriaRanking[$col] = ($comp2[$col]/$sum);
      /* DB::table('application_criteria_ranking')
@@ -1970,8 +2053,8 @@ echo "<br>";
 $all_alternatives = DB::table('project_alternative')->where('project_id', $project)->pluck('ap_id');
 
 for ($col = 0; $col < (sizeof($all_criteria)*sizeof($all_alternatives)); $col++) {
-   echo $projectRanking[$col];
-  echo "<br>";
+   //echo $projectRanking[$col];
+ // / echo "<br>";
   }
 
 echo "<br>";
@@ -1989,10 +2072,16 @@ for($row = 0;$row <sizeof($all_criteria);$row++){
 }
 
  //var_dump($projArray);
-
+$arr1=array("Public","Private","Hybrid");
  echo "<table border='1'>";
+ echo "<tr>";echo "<th>&nbsp;</th>";
+echo "<th>Scalability </th>";
+echo "<th> Security </th>";
+echo "<th> Latency </th>";
+echo "<th> IO Intensity </th>";
+echo "</tr>";
     for ($row = 0; $row < sizeof($all_alternatives); $row++) {
-      echo "<tr>";
+      echo "<tr>";echo "<td><b>".$arr1[$row]."</b></td>";
       for ($col = 0; $col <sizeof($all_criteria); $col++) {
         echo "<td>".$projArray[$row][$col]."</td>";
       }
@@ -2033,8 +2122,7 @@ for ($col = 0; $col < sizeof($project_alts); $col++) {
   $rankArray[$project_alts[$col]] = $finalRank[$col];
   
   }
-  print_r($rankArray);
-echo "final result-------------";
+  //print_r($rankArray);
 
 arsort($rankArray);
 
@@ -2048,12 +2136,12 @@ foreach ($rankArray as $key => $value) {
  $i++;
 }
 
-echo "final result in array-------------";
+echo "final result-------------";
 $cloudNames =array();
 $j=1;
 for($i=0;$i<sizeof($project_alts);$i++){
 
-  echo $compareArray[$i];
+  //echo $compareArray[$i];
   $varName = DB::table('alternatives')->where('id', $compareArray[$i])->value('name');
 
   $cloudNames[] = $varName;
@@ -2066,16 +2154,16 @@ for($i=0;$i<sizeof($project_alts);$i++){
         ]
         );*/
 $j++;
-echo "<br>";
+//echo "<br>";
 
 }
 
 
-echo "Cloud names";
+echo "<br>";
 
 for($i=0;$i<sizeof($project_alts);$i++){
 
-  echo $cloudNames[$i];
+  echo $cloudNames[$i]; echo "<br>";
 
 }
 
@@ -2087,7 +2175,7 @@ for($i=0;$i<sizeof($project_alts);$i++){
                       'cloud_suitability_2' =>$cloudNames[1],
                       'cloud_suitability_3' =>$cloudNames[2],
                       'completed' => 2]);*/
-
+echo "<br>";
 return "Success";
 
 
